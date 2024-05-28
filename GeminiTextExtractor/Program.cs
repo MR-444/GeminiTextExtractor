@@ -53,6 +53,7 @@ List<string> ExtractModelTexts(JObject jsonObject)
     return chunks
         .Where(chunk => chunk["role"]?.ToString() == "model")
         .Select(chunk => chunk["text"]?.ToString())
-        .Where(text => !string.IsNullOrEmpty(text))
+        .Where(text => !string.IsNullOrEmpty(text)) // Filter out null and empty texts
+        .Select(text => text!) // Assert that text is non-null here
         .ToList();
 }
