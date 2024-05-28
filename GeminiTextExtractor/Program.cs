@@ -48,7 +48,7 @@ catch (Exception ex)
 List<string> ExtractModelTexts(JObject jsonObject)
 {
     var chunks = jsonObject["chunkedPrompt"]?["chunks"];
-    if (chunks == null) return new List<string>();
+    if (chunks == null) return [];
 
     return chunks
         .Where(chunk => chunk["role"]?.ToString() == "model")
