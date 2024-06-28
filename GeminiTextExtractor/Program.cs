@@ -1,59 +1,57 @@
 ﻿using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
-// Check if the correct number of arguments are provided
-if (args.Length != 1)
+namespace GeminiTextExtractor;
+
+class Program
 {
-    Console.WriteLine("Usage: <program> <inputFileName>");
-    return;
-}
+    static async Task Main(string[] args)
+    {
+        if (args is not [var inputFileName])
+        {
+            Console.WriteLine("Usage: <program> <inputFileName>");
+            return;
+        }
 
-// Get the input file name from the command-line arguments
-var inputFileName = args[0];
-var inputFilePath = Path.Combine(Environment.CurrentDirectory, inputFileName);
+        var inputFilePath = Path.GetFullPath(inputFileName);
+        var outputFilePath = Path.ChangeExtension(inputFilePath, "_extract.txt");
 
-// Construct the output file name
-var outputFileName = Path.GetFileNameWithoutExtension(inputFileName) + "_extract.txt";
-var outputFilePath = Path.Combine(Environment.CurrentDirectory, outputFileName);
+        if (File.Exists(inputFilePath) is false)
+        {
+            Console.WriteLine($"Input file not found: {inputFilePath}");
+            return;
+        }
 
-try
-{
-    // Read the JSON file
-    var jsonContent = File.ReadAllText(inputFilePath);
+        try
+        {
+            var jsonContent = await File.ReadAllTextAsync(inputFilePath);
+            var jsonObject = JObject.Parse(jsonContent);
+            var modelTexts = ExtractTexts(jsonObject, "model");
 
-    // Parse the JSON content
-    var jsonObject = JObject.Parse(jsonContent);
+            await File.WriteAllTextAsync(outputFilePath, 
+                string.Join(Environment.NewLine + Environment.NewLine, modelTexts));
 
-    // Extract the texts with "role": "model"
-    var modelTexts = ExtractModelTexts(jsonObject);
+            Console.WriteLine($"Extracted texts have been saved to {outputFilePath}");
+        }
+        catch (FileNotFoundException ex)
+        {
+            Console.WriteLine($"File not found: {ex.Message}");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"Error parsing JSON: {ex.Message}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"An error occurred: {ex.Message}");
+        }
+    }
 
-    // Save the extracted texts to a new file
-    File.WriteAllLines(outputFilePath, modelTexts);
-
-    Console.WriteLine("Extracted texts have been saved to " + outputFilePath);
-}
-catch (FileNotFoundException ex)
-{
-    Console.WriteLine("File not found: " + ex.Message);
-}
-catch (JsonException ex)
-{
-    Console.WriteLine("Error parsing JSON: " + ex.Message);
-}
-catch (Exception ex)
-{
-    Console.WriteLine("An error occurred: " + ex.Message);
-}
-
-List<string> ExtractModelTexts(JObject jsonObject)
-{
-    var chunks = jsonObject["chunkedPrompt"]?["chunks"];
-    if (chunks == null) return [];
-
-    return chunks
-        .Where(chunk => chunk["role"]?.ToString() == "model")
-        .Select(chunk => chunk["text"]?.ToString())
-        .Where(text => !string.IsNullOrEmpty(text)) // Filter out null and empty texts
-        .Select(text => text!) // Assert that text is non-null here
-        .ToList();
+    static IEnumerable<string> ExtractTexts(JObject jsonObject, string role) =>
+        jsonObject["chunkedPrompt"]?["chunks"]?
+            .Where(chunk => chunk["role"]?.ToString() == role)
+            .Select(chunk => chunk["text"]?.ToString())
+            .Where(text => !string.IsNullOrEmpty(text))
+            .Select(text => text!)
+            .ToList() ?? [];
 }
