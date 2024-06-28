@@ -3,9 +3,9 @@ using Newtonsoft.Json.Linq;
 
 namespace GeminiTextExtractor;
 
-class Program
+internal static class Program
 {
-    static async Task Main(string[] args)
+    private static async Task Main(string[] args)
     {
         if (args is not [var inputFileName])
         {
